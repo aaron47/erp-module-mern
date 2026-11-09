@@ -6,7 +6,7 @@ export const config = z
     MONGODB_URI: z.string().min(1),
     JWT_SECRET: z.string().min(32),
     PORT: z.coerce.number().int().positive().default(4000),
-    CLIENT_ORIGIN: z.string().url(),
+    CLIENT_ORIGIN: z.union([z.literal("*"), z.string().url()]),
     LOW_STOCK_THRESHOLD: z.coerce.number().int().min(0).max(100).default(10),
     SMTP_URL: z.string().optional(),
     MAIL_FROM: z.string().email().optional(),
