@@ -5,7 +5,13 @@ export interface DocumentMetadata {
   createdAt: Date;
   updatedAt: Date;
 }
-export function newDocument(owner: string): DocumentMetadata {
-  const now = new Date();
-  return { _id: randomUUID(), owner, createdAt: now, updatedAt: now };
-}
+export const documentFields = {
+  _id: { type: String, default: () => randomUUID() },
+  owner: {
+    type: String,
+    ref: "User",
+    required: true,
+    index: true,
+    immutable: true,
+  },
+};

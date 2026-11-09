@@ -1,14 +1,13 @@
-import type { ClientSession } from "mongodb";
+import type { ClientSession, HydratedDocument } from "mongoose";
 import { Problem, conflict } from "../errors/Problem.js";
-import { newDocument } from "../models/document.js";
 import {
-  orders,
+  OrderModel,
   orderSchema,
   type OrderDocument,
 } from "../models/order.model.js";
 import { config } from "../config/env.js";
-import { stocks, type StockDocument } from "../models/stock.model.js";
-import { reservations } from "../models/reservation.model.js";
+import { StockModel, type StockDocument } from "../models/stock.model.js";
+import { ReservationModel } from "../models/reservation.model.js";
 import { ProductService } from "./product.service.js";
 import { WarehouseService } from "./warehouse.service.js";
 import { ReservationService } from "./reservation.service.js";
@@ -19,16 +18,16 @@ export class OrderService {
     private readonly session?: ClientSession,
   ) {}
   list() {
-    return orders
-      .find({ owner: this.owner }, { session: this.session })
+    return OrderModel.find({ owner: this.owner })
+      .session(this.session ?? null)
       .sort({ _id: 1 })
-      .toArray();
+      .lean();
   }
   async get(id: string) {
-    const record = await orders.findOne(
-      { _id: id, owner: this.owner },
-      { session: this.session },
-    );
+    const record = await OrderModel.findOne({
+      _id: id,
+      owner: this.owner,
+    }).session(this.session ?? null);
     if (!record) throw new Problem(404, "Record not found in orders");
     return record;
   }
@@ -42,15 +41,18 @@ export class OrderService {
   async delete(id: string) {
     await this.get(id);
     await this.clearOrder(id);
-    await orders.deleteOne(
+    await OrderModel.deleteOne(
       { _id: id, owner: this.owner },
       { session: this.session },
     );
   }
   private async clearOrder(key: string) {
-    const allocations = await reservations
-      .find({ owner: this.owner, orderId: key }, { session: this.session })
-      .toArray();
+    const allocations = await ReservationModel.find({
+      owner: this.owner,
+      orderId: key,
+    })
+      .session(this.session ?? null)
+      .lean();
     if (allocations.some((x) => x.status === "FULFILLED"))
       conflict(
         "Reverse fulfilled reservations before changing order lines or deleting this order.",
@@ -60,13 +62,13 @@ export class OrderService {
         r,
         -1,
       );
-      await reservations.deleteOne(
+      await ReservationModel.deleteOne(
         { _id: r._id, owner: this.owner },
         { session: this.session },
       );
     }
   }
-  private async place(body: unknown, old?: OrderDocument) {
+  private async place(body: unknown, old?: HydratedDocument<OrderDocument>) {
     const input = orderSchema.parse(body);
     const quantities = new Map<string, number>();
     for (const item of input.items)
@@ -79,15 +81,8 @@ export class OrderService {
       old.items.length === quantities.size &&
       old.items.every((x) => quantities.get(x.productId) === x.quantity);
     if (unchanged && old.status !== "REJECTED") {
-      const order = {
-        ...old,
-        description: input.description,
-        updatedAt: new Date(),
-      };
-      await orders.replaceOne({ _id: old._id, owner: this.owner }, order, {
-        session: this.session,
-      });
-      return order;
+      old.description = input.description;
+      return old.save({ session: this.session });
     }
     if (old) await this.clearOrder(old._id);
     const items: OrderDocument["items"] = [];
@@ -105,10 +100,13 @@ export class OrderService {
         unitPrice: prior?.unitPrice ?? product.price,
       });
       let remaining = quantity;
-      for (const stock of await stocks
-        .find({ owner: this.owner, productId }, { session: this.session })
+      for (const stock of await StockModel.find({
+        owner: this.owner,
+        productId,
+      })
+        .session(this.session ?? null)
         .sort({ _id: 1 })
-        .toArray()) {
+        .lean()) {
         if (
           !(
             await new WarehouseService(this.owner, this.session).get(
@@ -129,19 +127,14 @@ export class OrderService {
       }
       if (remaining > 0) covered = false;
     }
-    const order: OrderDocument = {
-      ...(old ?? newDocument(this.owner)),
+    const order =
+      old ?? new OrderModel({ owner: this.owner, orderPlacerId: this.owner });
+    order.set({
       description: input.description,
       items,
-      orderPlacerId: this.owner,
       status: covered ? "CONFIRMED" : "REJECTED",
-      updatedAt: new Date(),
-    };
-    if (old)
-      await orders.replaceOne({ _id: old._id, owner: this.owner }, order, {
-        session: this.session,
-      });
-    else await orders.insertOne(order, { session: this.session });
+    });
+    await order.save({ session: this.session });
     if (covered)
       for (const allocation of plan) {
         const data = {
@@ -153,20 +146,19 @@ export class OrderService {
           data,
           1,
         );
-        await reservations.insertOne(
-          { ...newDocument(this.owner), ...data },
-          { session: this.session },
-        );
+        await new ReservationModel({ owner: this.owner, ...data }).save({
+          session: this.session,
+        });
       }
     // Simulated receipts follow the reservation decision, even for a rejected order.
     for (const stock of replenish) {
-      const candidates = await stocks
-        .find(
-          { owner: this.owner, productId: stock.productId },
-          { session: this.session },
-        )
+      const candidates = await StockModel.find({
+        owner: this.owner,
+        productId: stock.productId,
+      })
+        .session(this.session ?? null)
         .sort({ _id: 1 })
-        .toArray();
+        .lean();
       const receivingStock = candidates.reduce((lowest, candidate) =>
         candidate.quantityOnHand < lowest.quantityOnHand ? candidate : lowest,
       );

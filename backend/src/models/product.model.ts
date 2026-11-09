@@ -1,5 +1,5 @@
-import { db } from "../config/database.js";
-import type { DocumentMetadata } from "./document.js";
+import { Schema, model } from "mongoose";
+import { documentFields, type DocumentMetadata } from "./document.js";
 import { z } from "zod";
 import { name } from "./fields.js";
 
@@ -10,4 +10,13 @@ export const productSchema = z
 export type Product = z.output<typeof productSchema>;
 
 export type ProductDocument = Product & DocumentMetadata;
-export const products = db.collection<ProductDocument>("products");
+
+const schema = new Schema<ProductDocument>(
+  {
+    ...documentFields,
+    name: { type: String, required: true },
+    price: { type: Number, required: true, min: 0 },
+  },
+  { timestamps: true, versionKey: false },
+);
+export const ProductModel = model("Product", schema, "products");

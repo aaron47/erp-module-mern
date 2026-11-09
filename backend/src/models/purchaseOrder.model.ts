@@ -1,5 +1,5 @@
-import { db } from "../config/database.js";
-import type { DocumentMetadata } from "./document.js";
+import { Schema, model } from "mongoose";
+import { documentFields, type DocumentMetadata } from "./document.js";
 import { z } from "zod";
 import { id, name, quantity } from "./fields.js";
 
@@ -12,5 +12,19 @@ export type PurchaseOrder = z.output<typeof purchaseOrderSchema> & {
 };
 
 export type PurchaseOrderDocument = PurchaseOrder & DocumentMetadata;
-export const purchaseOrders =
-  db.collection<PurchaseOrderDocument>("purchase-orders");
+
+const schema = new Schema<PurchaseOrderDocument>(
+  {
+    ...documentFields,
+    stockId: { type: String, ref: "Stock", required: true },
+    productId: { type: String, ref: "Product", required: true },
+    supplierId: { type: String, required: true },
+    quantity: { type: Number, min: 1, required: true },
+  },
+  { timestamps: true, versionKey: false },
+);
+export const PurchaseOrderModel = model(
+  "PurchaseOrder",
+  schema,
+  "purchase-orders",
+);

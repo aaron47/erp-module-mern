@@ -1,58 +1,47 @@
-import type { ClientSession } from "mongodb";
+import type { ClientSession } from "mongoose";
 import { Problem, conflict } from "../errors/Problem.js";
-import { newDocument } from "../models/document.js";
-import { warehouses, warehouseSchema } from "../models/warehouse.model.js";
-import { stocks } from "../models/stock.model.js";
+import { WarehouseModel, warehouseSchema } from "../models/warehouse.model.js";
+import { StockModel } from "../models/stock.model.js";
 export class WarehouseService {
   constructor(
     private readonly owner: string,
     private readonly session?: ClientSession,
   ) {}
   list() {
-    return warehouses
-      .find({ owner: this.owner }, { session: this.session })
+    return WarehouseModel.find({ owner: this.owner })
+      .session(this.session ?? null)
       .sort({ _id: 1 })
-      .toArray();
+      .lean();
   }
   async get(id: string) {
-    const record = await warehouses.findOne(
-      { _id: id, owner: this.owner },
-      { session: this.session },
-    );
+    const record = await WarehouseModel.findOne({
+      _id: id,
+      owner: this.owner,
+    }).session(this.session ?? null);
     if (!record) throw new Problem(404, "Record not found in warehouses");
     return record;
   }
 
   async create(body: unknown) {
-    const record = {
-      ...newDocument(this.owner),
+    return new WarehouseModel({
+      owner: this.owner,
       ...warehouseSchema.parse(body),
-    };
-    await warehouses.insertOne(record, { session: this.session });
-    return record;
+    }).save({ session: this.session });
   }
   async update(id: string, body: unknown) {
     const old = await this.get(id);
-    const record = {
-      ...old,
-      ...warehouseSchema.parse(body),
-      updatedAt: new Date(),
-    };
-    await warehouses.replaceOne({ _id: id, owner: this.owner }, record, {
-      session: this.session,
-    });
-    return record;
+    old.set(warehouseSchema.parse(body));
+    return old.save({ session: this.session });
   }
   async delete(id: string) {
     await this.get(id);
     if (
-      await stocks.findOne(
-        { owner: this.owner, warehouseId: id },
-        { session: this.session },
+      await StockModel.findOne({ owner: this.owner, warehouseId: id }).session(
+        this.session ?? null,
       )
     )
       conflict("Warehouse still contains stock records.");
-    await warehouses.deleteOne(
+    await WarehouseModel.deleteOne(
       { _id: id, owner: this.owner },
       { session: this.session },
     );

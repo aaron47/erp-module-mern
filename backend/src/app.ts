@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { config } from "./config/env.js";
-import { db } from "./config/database.js";
+import { UserModel } from "./models/user.model.js";
 import { api } from "./routes/index.js";
 import { Problem } from "./errors/Problem.js";
 import { onError } from "./middleware/errorHandler.js";
@@ -12,7 +12,7 @@ if (process.env.RENDER) app.set("trust proxy", 1);
 app.use(cors({ origin: config.CLIENT_ORIGIN }));
 app.use(express.json({ limit: "100kb" }));
 app.get("/health", async (_req, res) => {
-  await db.command({ ping: 1 });
+  await UserModel.exists({ _id: "health-check" });
   res.json({ status: "ok" });
 });
 app.use("/api/v1", api);

@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { config } from "../config/env.js";
-import { users, credentials } from "../models/user.model.js";
+import { UserModel, credentials } from "../models/user.model.js";
 import { Problem } from "../errors/Problem.js";
 
 function session(account: { _id: string; email: string }) {
@@ -21,12 +21,12 @@ export async function register(body: unknown) {
     hash: await bcrypt.hash(password, 12),
     revision: 0,
   };
-  await users.insertOne(account);
+  await new UserModel(account).save();
   return session(account);
 }
 export async function login(body: unknown) {
   const { email, password } = credentials.parse(body);
-  const account = await users.findOne({ email });
+  const account = await UserModel.findOne({ email });
   if (!account || !(await bcrypt.compare(password, account.hash)))
     throw new Problem(401, "Invalid email or password.");
   return session(account);

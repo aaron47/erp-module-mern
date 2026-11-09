@@ -1,13 +1,17 @@
-import { db } from "../config/database.js";
+import { model, Schema } from "mongoose";
 import { z } from "zod";
 
-export const users = db.collection<{
-  _id: string;
-  email: string;
-  hash: string;
-  revision: number;
-  demoSeeded?: boolean;
-}>("users");
+const schema = new Schema(
+  {
+    _id: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    hash: { type: String, required: true },
+    revision: { type: Number, default: 0 },
+    demoSeeded: Boolean,
+  },
+  { versionKey: false },
+);
+export const UserModel = model("User", schema, "users");
 
 export const credentials = z
   .object({

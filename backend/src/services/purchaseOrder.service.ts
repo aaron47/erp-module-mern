@@ -1,8 +1,7 @@
-import type { ClientSession } from "mongodb";
+import type { ClientSession } from "mongoose";
 import { Problem } from "../errors/Problem.js";
-import { newDocument } from "../models/document.js";
 import {
-  purchaseOrders,
+  PurchaseOrderModel,
   purchaseOrderSchema,
 } from "../models/purchaseOrder.model.js";
 import { StockService } from "./stock.service.js";
@@ -12,16 +11,16 @@ export class PurchaseOrderService {
     private readonly session?: ClientSession,
   ) {}
   list() {
-    return purchaseOrders
-      .find({ owner: this.owner }, { session: this.session })
+    return PurchaseOrderModel.find({ owner: this.owner })
+      .session(this.session ?? null)
       .sort({ _id: 1 })
-      .toArray();
+      .lean();
   }
   async get(id: string) {
-    const record = await purchaseOrders.findOne(
-      { _id: id, owner: this.owner },
-      { session: this.session },
-    );
+    const record = await PurchaseOrderModel.findOne({
+      _id: id,
+      owner: this.owner,
+    }).session(this.session ?? null);
     if (!record) throw new Problem(404, "Record not found in purchase-orders");
     return record;
   }
@@ -32,13 +31,11 @@ export class PurchaseOrderService {
       data.stockId,
       data.quantity,
     );
-    const receipt = {
-      ...newDocument(this.owner),
+    return new PurchaseOrderModel({
+      owner: this.owner,
       ...data,
       productId: stock.productId,
-    };
-    await purchaseOrders.insertOne(receipt, { session: this.session });
-    return receipt;
+    }).save({ session: this.session });
   }
   async update(id: string, body: unknown) {
     const old = await this.get(id);
@@ -50,16 +47,11 @@ export class PurchaseOrderService {
       data.stockId,
       data.quantity - (sameStock ? old.quantity : 0),
     );
-    const receipt = {
-      ...old,
+    old.set({
       ...data,
       productId: stock.productId,
-      updatedAt: new Date(),
-    };
-    await purchaseOrders.replaceOne({ _id: id, owner: this.owner }, receipt, {
-      session: this.session,
     });
-    return receipt;
+    return old.save({ session: this.session });
   }
   async delete(id: string) {
     const old = await this.get(id);
@@ -67,7 +59,7 @@ export class PurchaseOrderService {
       old.stockId,
       -old.quantity,
     );
-    await purchaseOrders.deleteOne(
+    await PurchaseOrderModel.deleteOne(
       { _id: id, owner: this.owner },
       { session: this.session },
     );

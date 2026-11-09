@@ -4,7 +4,7 @@ A TypeScript port of the Spring ERP. The Express API handles sales, inventory an
 
 ## Source layout
 
-Each ERP entity has a router, controller, service class, and typed MongoDB collection. For example, `routes/order.routes.ts` maps requests to `controllers/order.controller.ts`, which calls `OrderService` in `services/order.service.ts`. The service handles order CRUD and allocation. Mutating requests run in an owner-scoped MongoDB transaction.
+Each ERP entity has a router, controller, service class, and Mongoose model. For example, `routes/order.routes.ts` maps requests to `controllers/order.controller.ts`, which calls `OrderService` in `services/order.service.ts`. The service uses `OrderModel` for CRUD and runs stock allocation in the same transaction as the order write. Models use the existing MongoDB collection names and UUID string IDs.
 
 In the frontend, each entity has a page with its own table and search, and a form with explicit inputs and API calls. For example, `frontend/src/pages/ProductPage.tsx` lists products and `frontend/src/components/product/ProductForm.tsx` creates and edits them. Shared components provide layout and dialogs.
 
