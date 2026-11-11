@@ -18,9 +18,9 @@ export function StockPage({ request }: { request: RequestApi }) {
   useEffect(() => {
     let active = true;
     Promise.all([
-      request<Stock[]>("/stocks"),
-      request<Product[]>("/products"),
-      request<Warehouse[]>("/warehouses"),
+      request<Stock[]>("/stocks?scope=dashboard"),
+      request<Product[]>("/products?scope=dashboard"),
+      request<Warehouse[]>("/warehouses?scope=dashboard"),
     ])
       .then(([stocks, products, warehouses]) => {
         if (active) {
@@ -94,6 +94,7 @@ export function StockPage({ request }: { request: RequestApi }) {
               <td>{row.quantityReserved}</td>
               <td>{row.quantityOnHand - row.quantityReserved}</td>
               <RowActions
+                readOnly={row.readOnly}
                 edit={() => setEditor(row)}
                 remove={() => setDeleting(row)}
               />
@@ -104,8 +105,8 @@ export function StockPage({ request }: { request: RequestApi }) {
       {editor && (
         <StockForm
           stock={editor === "new" ? undefined : editor}
-          products={products}
-          warehouses={warehouses}
+          products={products.filter((row) => !row.readOnly)}
+          warehouses={warehouses.filter((row) => !row.readOnly)}
           request={request}
           onSaved={saved}
           onClose={() => setEditor(null)}

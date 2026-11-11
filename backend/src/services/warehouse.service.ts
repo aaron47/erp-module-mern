@@ -7,8 +7,8 @@ export class WarehouseService {
     private readonly owner: string,
     private readonly session?: ClientSession,
   ) {}
-  list() {
-    return WarehouseModel.find({ owner: this.owner })
+  list(owners: string[] = [this.owner]) {
+    return WarehouseModel.find({ owner: { $in: owners } })
       .session(this.session ?? null)
       .sort({ _id: 1 })
       .lean();

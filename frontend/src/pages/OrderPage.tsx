@@ -16,7 +16,10 @@ export function OrderPage({ request }: { request: RequestApi }) {
     [deleting, setDeleting] = useState<Order | null>(null);
   useEffect(() => {
     let active = true;
-    Promise.all([request<Order[]>("/orders"), request<Product[]>("/products")])
+    Promise.all([
+      request<Order[]>("/orders?scope=dashboard"),
+      request<Product[]>("/products?scope=dashboard"),
+    ])
       .then(([orders, products]) => {
         if (active) {
           setOrders(orders);
@@ -98,6 +101,7 @@ export function OrderPage({ request }: { request: RequestApi }) {
                 <span className={"status " + row.status}>{row.status}</span>
               </td>
               <RowActions
+                readOnly={row.readOnly}
                 edit={() => setEditor(row)}
                 remove={() => setDeleting(row)}
               />
@@ -108,7 +112,7 @@ export function OrderPage({ request }: { request: RequestApi }) {
       {editor && (
         <OrderForm
           order={editor === "new" ? undefined : editor}
-          products={products}
+          products={products.filter((row) => !row.readOnly)}
           request={request}
           onSaved={saved}
           onClose={() => setEditor(null)}

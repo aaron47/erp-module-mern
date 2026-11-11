@@ -1,9 +1,22 @@
+import { UserModel } from "../models/user.model.js";
 import type { RequestHandler } from "express";
 import { ProductService } from "../services/product.service.js";
 import { transact } from "../repositories/transaction.js";
 
-export const list: RequestHandler = async (_req, res) => {
-  res.json(await new ProductService(res.locals.owner).list());
+export const list: RequestHandler = async (req, res) => {
+  const owners =
+    req.query.scope === "dashboard"
+      ? await UserModel.distinct("_id", { role: "admin" })
+      : [res.locals.owner];
+  const rows = await new ProductService(res.locals.owner).list(owners);
+  res.json(
+    req.query.scope === "dashboard"
+      ? rows.map((row) => ({
+          ...row,
+          readOnly: row.owner !== res.locals.owner,
+        }))
+      : rows,
+  );
 };
 export const get: RequestHandler = async (req, res) => {
   res.json(

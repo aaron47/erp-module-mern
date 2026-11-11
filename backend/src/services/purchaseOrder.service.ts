@@ -10,8 +10,8 @@ export class PurchaseOrderService {
     private readonly owner: string,
     private readonly session?: ClientSession,
   ) {}
-  list() {
-    return PurchaseOrderModel.find({ owner: this.owner })
+  list(owners: string[] = [this.owner]) {
+    return PurchaseOrderModel.find({ owner: { $in: owners } })
       .session(this.session ?? null)
       .sort({ _id: 1 })
       .lean();

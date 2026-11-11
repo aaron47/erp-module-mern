@@ -15,7 +15,7 @@ export function WarehousePage({ request }: { request: RequestApi }) {
     [deleting, setDeleting] = useState<Warehouse | null>(null);
   useEffect(() => {
     let active = true;
-    request<Warehouse[]>("/warehouses")
+    request<Warehouse[]>("/warehouses?scope=dashboard")
       .then((rows) => {
         if (active) setWarehouses(rows);
       })
@@ -84,6 +84,7 @@ export function WarehousePage({ request }: { request: RequestApi }) {
               <td>{row.address || "—"}</td>
               <td>{row.active ? "Active" : "Inactive"}</td>
               <RowActions
+                readOnly={row.readOnly}
                 edit={() => setEditor(row)}
                 remove={() => setDeleting(row)}
               />

@@ -8,8 +8,8 @@ export class ProductService {
     private readonly owner: string,
     private readonly session?: ClientSession,
   ) {}
-  list() {
-    return ProductModel.find({ owner: this.owner })
+  list(owners: string[] = [this.owner]) {
+    return ProductModel.find({ owner: { $in: owners } })
       .session(this.session ?? null)
       .sort({ _id: 1 })
       .lean();

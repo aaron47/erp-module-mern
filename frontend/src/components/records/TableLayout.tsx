@@ -60,12 +60,15 @@ export function TableLayout({
   );
 }
 export function RowActions({
+  readOnly,
   edit,
   remove,
 }: {
+  readOnly?: boolean;
   edit: () => void;
   remove: () => void;
 }) {
+  if (readOnly) return <td>View only</td>;
   return (
     <td>
       <div className="actions">

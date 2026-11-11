@@ -8,6 +8,8 @@ const schema = new Schema(
     hash: { type: String, required: true },
     revision: { type: Number, default: 0 },
     demoSeeded: Boolean,
+    demoCatalogSeeded: Boolean,
+    role: { type: String, enum: ["customer", "admin"], default: "customer" },
   },
   { versionKey: false },
 );

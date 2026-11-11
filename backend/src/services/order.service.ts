@@ -17,8 +17,8 @@ export class OrderService {
     private readonly owner: string,
     private readonly session?: ClientSession,
   ) {}
-  list() {
-    return OrderModel.find({ owner: this.owner })
+  list(owners: string[] = [this.owner]) {
+    return OrderModel.find({ owner: { $in: owners } })
       .session(this.session ?? null)
       .sort({ _id: 1 })
       .lean();
@@ -32,8 +32,8 @@ export class OrderService {
     return record;
   }
 
-  create(body: unknown) {
-    return this.place(body);
+  create(body: unknown, buyerId = this.owner) {
+    return this.place(body, undefined, buyerId);
   }
   async update(id: string, body: unknown) {
     return this.place(body, await this.get(id));
@@ -68,7 +68,11 @@ export class OrderService {
       );
     }
   }
-  private async place(body: unknown, old?: HydratedDocument<OrderDocument>) {
+  private async place(
+    body: unknown,
+    old?: HydratedDocument<OrderDocument>,
+    buyerId = this.owner,
+  ) {
     const input = orderSchema.parse(body);
     const quantities = new Map<string, number>();
     for (const item of input.items)
@@ -128,7 +132,7 @@ export class OrderService {
       if (remaining > 0) covered = false;
     }
     const order =
-      old ?? new OrderModel({ owner: this.owner, orderPlacerId: this.owner });
+      old ?? new OrderModel({ owner: this.owner, orderPlacerId: buyerId });
     order.set({
       description: input.description,
       items,

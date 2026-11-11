@@ -5,13 +5,13 @@ import { config } from "../config/env.js";
 import { UserModel, credentials } from "../models/user.model.js";
 import { Problem } from "../errors/Problem.js";
 
-function session(account: { _id: string; email: string }) {
+function session(account: { _id: string; email: string; role?: string }) {
   const token = jwt.sign({ sub: account._id }, config.JWT_SECRET, {
     expiresIn: "8h",
     algorithm: "HS256",
     issuer: "erp",
   });
-  return { token, email: account.email };
+  return { token, email: account.email, role: account.role ?? "customer" };
 }
 export async function register(body: unknown) {
   const { email, password } = credentials.parse(body);

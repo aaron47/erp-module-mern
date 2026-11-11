@@ -14,8 +14,8 @@ export class ReservationService {
     private readonly owner: string,
     private readonly session?: ClientSession,
   ) {}
-  list() {
-    return ReservationModel.find({ owner: this.owner })
+  list(owners: string[] = [this.owner]) {
+    return ReservationModel.find({ owner: { $in: owners } })
       .session(this.session ?? null)
       .sort({ _id: 1 })
       .lean();

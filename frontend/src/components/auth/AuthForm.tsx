@@ -27,11 +27,12 @@ export function AuthForm({ enter }: { enter: (s: Session) => void }) {
   return (
     <section className="access">
       <div className="access-inner">
-        <h2>{register ? "Create your workspace" : "Welcome back"}</h2>
+        <a href="#catalog">← Product catalog</a>
+        <h2>{register ? "Create an account" : "Welcome back"}</h2>
         <p>
           {register
-            ? "Register to start managing your inventory."
-            : "Sign in to your ERP workspace."}
+            ? "Register to purchase products."
+            : "Sign in to your account."}
         </p>
         <form onSubmit={submit}>
           <label>

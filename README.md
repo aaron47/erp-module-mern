@@ -1,6 +1,6 @@
 # Ledger ERP
 
-A TypeScript port of the Spring ERP. The Express API handles sales, inventory and procurement in one process. React provides forms and searchable tables for products, warehouses, stock, sales orders, reservations and purchase orders. Registration creates a private workspace. Users authenticate with a bcrypt-hashed password and receive an eight-hour bearer JWT.
+A TypeScript port of the Spring ERP. The Express API handles sales, inventory and procurement in one process. React provides forms and searchable tables for products, warehouses, stock, sales orders, reservations and purchase orders. Guests browse an administrator’s products and signed-in customers can purchase them. Administrators manage their inventory and sales orders in the dashboard. Users authenticate with a bcrypt-hashed password and receive an eight-hour bearer JWT.
 
 ## Source layout
 
@@ -19,7 +19,13 @@ npm ci --prefix frontend
 npm run dev --prefix backend
 ```
 
-In a second terminal, run `npm run dev --prefix frontend` and open [the local workspace](http://localhost:5173). Register an account, add a product and a warehouse, then create a stock record linking them. Create a sales order and inspect its reservations.
+In a second terminal, run `npm run dev --prefix frontend` and open [the local workspace](http://localhost:5173). Register an account, then grant dashboard access to your chosen administrator from the repository root:
+
+```powershell
+npm run grant-admin --prefix backend -- admin@example.com
+```
+
+Use the registered email and the database for the intended environment. Sign in and select **Dashboard** to manage inventory. An administrator’s products appear in the public catalog, and purchases appear in that administrator’s sales orders. Existing accounts default to customers until promoted.
 
 Local `backend/.env` and `frontend/.env` are supplied in this workspace and excluded from Git. For a fresh checkout, copy each app's `.env.example` to `.env` and set the backend's `JWT_SECRET` to a random secret. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"`.
 
@@ -33,7 +39,7 @@ Set `SEED_PASSWORD` in `backend/.env` to a password of at least eight characters
 npm run seed --prefix backend
 ```
 
-Sign in with that email and password. The script uses the database in `MONGODB_URI` and creates the account, two warehouses, three products, stock, a purchase receipt, and three sales orders in one transaction. The examples include fulfilled and reserved units and a rejected order for an out-of-stock dock. Rerunning skips the seeded workspace and preserves subsequent edits.
+The seed account has administrator access. Rerun the seed with its original credentials to promote a previously seeded account. Sign in with that email and password. The script uses the database in `MONGODB_URI` and creates the account, two warehouses, eleven products, stock, a purchase receipt, and three sales orders in one transaction. The examples include fulfilled and reserved units and a rejected order for an out-of-stock dock. Previously seeded accounts receive the eight additional stocked catalog products once. Further runs preserve edits and stock levels.
 
 ## Domain behavior
 
@@ -46,9 +52,11 @@ Sign in with that email and password. The script uses the database in `MONGODB_U
 
 ## HTTP API
 
-All paths below use the prefix `/api/v1`. Send JSON request bodies. `POST /auth/register` and `POST /auth/login` accept `email` and `password` and return `{ token, email }`. Send the token in `Authorization: Bearer <token>` on resource requests.
+All paths below use the prefix `/api/v1`. Send JSON request bodies. `POST /auth/register` and `POST /auth/login` accept `email` and `password` and return `{ token, email, role }`. Send the token in `Authorization: Bearer <token>` on resource requests.
 
-Each collection supports POST and GET at its collection path and GET, PUT and DELETE at `/:id`. PUT accepts the full editable document. The API returns the saved record on POST (201) and PUT (200), and an empty response on DELETE (204).
+`GET /catalog` publicly lists product IDs, names and prices. `POST /catalog/purchases` requires a bearer token and accepts `{ productId, quantity }`. It returns an order reference, status and line items. The server resolves the inventory owner, authenticated buyer and unit price. A shortage produces a rejected order.
+
+Dashboard endpoints require an administrator. The dashboard uses `?scope=dashboard` to list records across administrator workspaces. Other administrators can view those records. The owner can edit or delete them. Each collection supports POST and GET at its collection path and GET, PUT and DELETE at `/:id`. PUT accepts the full editable document. The API returns the saved record on POST (201) and PUT (200), and an empty response on DELETE (204).
 
 | Collection | Editable fields |
 | --- | --- |
@@ -75,6 +83,7 @@ Run `npm run build --prefix backend` and `npm run build --prefix frontend` to ty
 ```powershell
 cd backend
 $env:ERP_TEST_URL = 'http://localhost:4000/api/v1'
+$env:ERP_TEST_MONGODB_URI = 'mongodb://127.0.0.1:27017/erp?replicaSet=rs0&directConnection=true'
 node --import tsx --test test/workflow.test.ts
 ```
 

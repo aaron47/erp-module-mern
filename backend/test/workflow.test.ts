@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import mongoose from "mongoose";
+import { UserModel } from "../src/models/user.model.js";
 
 test("isolated CRUD and transactional sales, allocation and receipt flows", async () => {
   const base = process.env.ERP_TEST_URL;
@@ -32,6 +34,20 @@ test("isolated CRUD and transactional sales, allocation and receipt flows", asyn
   };
   await request("/stocks", "GET", undefined, 401);
   await post("auth/register", credentials);
+  assert.ok(
+    process.env.ERP_TEST_MONGODB_URI,
+    "Supply the disposable API database URI.",
+  );
+  await mongoose.connect(process.env.ERP_TEST_MONGODB_URI);
+  try {
+    const promoted = await UserModel.updateOne(
+      { email: credentials.email },
+      { $set: { role: "admin" } },
+    );
+    assert.equal(promoted.matchedCount, 1);
+  } finally {
+    await mongoose.disconnect();
+  }
   token = (await request("/auth/login", "POST", credentials)).token;
   const product = await post("products", { name: "Cable", price: 12.5 });
   const p = product._id;
@@ -109,13 +125,72 @@ test("isolated CRUD and transactional sales, allocation and receipt flows", asyn
     "CONFIRMED",
     "REJECTED",
   ]);
+  const adminToken = token;
+  token = "";
+  const publicItem = (await request("/catalog")).find(
+    (row: { _id: string }) => row._id === p,
+  );
+  assert.deepEqual(publicItem, { _id: p, name: "Cable", price: 12.5 });
+  await request(
+    "/catalog/purchases",
+    "POST",
+    { productId: p, quantity: 1 },
+    401,
+  );
   token = (
     await post("auth/register", {
       ...credentials,
       email: randomUUID() + "@example.test",
     })
   ).token;
-  assert.deepEqual(await request("/products"), []);
-  await request("/products/" + p, "GET", undefined, 404);
-  await request("/orders", "POST", order, 404);
+  await request("/products", "GET", undefined, 403);
+  await request("/orders", "POST", order, 403);
+  const customerToken = token;
+  token = adminToken;
+  await request(
+    "/orders/" + concurrent.find((o) => o.status === "CONFIRMED")._id,
+    "DELETE",
+    undefined,
+    204,
+  );
+  token = customerToken;
+  const receipt = await post("catalog/purchases", {
+    productId: p,
+    quantity: 1,
+  });
+  assert.equal(receipt.status, "CONFIRMED");
+  assert.equal(receipt.items[0].unitPrice, 12.5);
+  token = adminToken;
+  const purchased = await request("/orders/" + receipt._id);
+  assert.notEqual(purchased.orderPlacerId, purchased.owner);
+  token = customerToken;
+  await request("/products?scope=dashboard", "GET", undefined, 403);
+  const viewer = await request("/me");
+  await mongoose.connect(process.env.ERP_TEST_MONGODB_URI);
+  try {
+    await UserModel.updateOne(
+      { email: viewer.email },
+      { $set: { role: "admin" } },
+    );
+  } finally {
+    await mongoose.disconnect();
+  }
+  for (const collection of [
+    "products",
+    "warehouses",
+    "stocks",
+    "orders",
+    "reservations",
+    "purchase-orders",
+  ]) {
+    assert.deepEqual(await request("/" + collection), []);
+    const rows = await request("/" + collection + "?scope=dashboard");
+    assert.ok(
+      rows.some(
+        (row: { owner: string; readOnly: boolean }) =>
+          row.owner === purchased.owner && row.readOnly,
+      ),
+    );
+  }
+  await request("/products/" + p, "PUT", { name: "Changed", price: 1 }, 404);
 });

@@ -45,6 +45,7 @@ export function Sidebar({
         ))}
       </nav>
       <div className="account">
+        <a href="#catalog">Product catalog</a>
         <small>{email}</small>
         <button onClick={leave}>Sign out</button>
       </div>

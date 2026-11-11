@@ -24,10 +24,10 @@ export function PurchaseOrderPage({ request }: { request: RequestApi }) {
   useEffect(() => {
     let active = true;
     Promise.all([
-      request<PurchaseOrder[]>("/purchase-orders"),
-      request<Stock[]>("/stocks"),
-      request<Product[]>("/products"),
-      request<Warehouse[]>("/warehouses"),
+      request<PurchaseOrder[]>("/purchase-orders?scope=dashboard"),
+      request<Stock[]>("/stocks?scope=dashboard"),
+      request<Product[]>("/products?scope=dashboard"),
+      request<Warehouse[]>("/warehouses?scope=dashboard"),
     ])
       .then(([purchaseOrders, stocks, products, warehouses]) => {
         if (active) {
@@ -99,6 +99,7 @@ export function PurchaseOrderPage({ request }: { request: RequestApi }) {
               <td>{row.supplierId}</td>
               <td>{row.quantity}</td>
               <RowActions
+                readOnly={row.readOnly}
                 edit={() => setEditor(row)}
                 remove={() => setDeleting(row)}
               />
@@ -109,7 +110,7 @@ export function PurchaseOrderPage({ request }: { request: RequestApi }) {
       {editor && (
         <PurchaseOrderForm
           purchaseOrder={editor === "new" ? undefined : editor}
-          stocks={stocks}
+          stocks={stocks.filter((row) => !row.readOnly)}
           stockNames={stockNames}
           request={request}
           onSaved={saved}

@@ -15,7 +15,7 @@ export function ProductPage({ request }: { request: RequestApi }) {
     [deleting, setDeleting] = useState<Product | null>(null);
   useEffect(() => {
     let active = true;
-    request<Product[]>("/products")
+    request<Product[]>("/products?scope=dashboard")
       .then((rows) => {
         if (active) setProducts(rows);
       })
@@ -72,6 +72,7 @@ export function ProductPage({ request }: { request: RequestApi }) {
               <td>{row.name}</td>
               <td>{row.price.toFixed(2)}</td>
               <RowActions
+                readOnly={row.readOnly}
                 edit={() => setEditor(row)}
                 remove={() => setDeleting(row)}
               />

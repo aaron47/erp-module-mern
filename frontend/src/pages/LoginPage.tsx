@@ -8,12 +8,8 @@ export function LoginPage({ enter }: { enter: (s: Session) => void }) {
       <aside className="cover">
         <Brand />
         <div className="cover-copy">
-          <span className="overline">OPERATIONS WORKSPACE</span>
-          <h1>
-            Inventory <br />
-            in order.
-          </h1>
-          <p>Manage stock, sales orders and procurement in one workspace.</p>
+          <h1>Product catalog</h1>
+          <p>Sign in to place an order.</p>
         </div>
         <div className="warehouse-art" aria-hidden="true">
           {[0, 1, 2].map((n) => (

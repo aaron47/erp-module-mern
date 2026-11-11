@@ -26,11 +26,11 @@ export function ReservationPage({ request }: { request: RequestApi }) {
   useEffect(() => {
     let active = true;
     Promise.all([
-      request<Reservation[]>("/reservations"),
-      request<Order[]>("/orders"),
-      request<Stock[]>("/stocks"),
-      request<Product[]>("/products"),
-      request<Warehouse[]>("/warehouses"),
+      request<Reservation[]>("/reservations?scope=dashboard"),
+      request<Order[]>("/orders?scope=dashboard"),
+      request<Stock[]>("/stocks?scope=dashboard"),
+      request<Product[]>("/products?scope=dashboard"),
+      request<Warehouse[]>("/warehouses?scope=dashboard"),
     ])
       .then(([reservations, orders, stocks, products, warehouses]) => {
         if (active) {
@@ -111,6 +111,7 @@ export function ReservationPage({ request }: { request: RequestApi }) {
                 <span className={"status " + row.status}>{row.status}</span>
               </td>
               <RowActions
+                readOnly={row.readOnly}
                 edit={() => setEditor(row)}
                 remove={() => setDeleting(row)}
               />
@@ -121,8 +122,8 @@ export function ReservationPage({ request }: { request: RequestApi }) {
       {editor && (
         <ReservationForm
           reservation={editor === "new" ? undefined : editor}
-          orders={orders}
-          stocks={stocks}
+          orders={orders.filter((row) => !row.readOnly)}
+          stocks={stocks.filter((row) => !row.readOnly)}
           stockNames={stockNames}
           request={request}
           onSaved={saved}

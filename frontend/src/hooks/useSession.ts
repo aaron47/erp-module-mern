@@ -1,6 +1,10 @@
 import { useCallback, useState } from "react";
 
-export type Session = { token: string; email: string };
+export type Session = {
+  token: string;
+  email: string;
+  role: "customer" | "admin";
+};
 function restore(): Session | null {
   try {
     return JSON.parse(sessionStorage.getItem("erp-session") ?? "null");
@@ -15,9 +19,9 @@ export function useSession() {
     sessionStorage.removeItem("erp-session");
     setSession(null);
   }, []);
-  function signIn(next: Session) {
+  const signIn = useCallback((next: Session) => {
     sessionStorage.setItem("erp-session", JSON.stringify(next));
     setSession(next);
-  }
+  }, []);
   return { session, signIn, signOut };
 }
